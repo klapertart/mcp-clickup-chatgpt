@@ -1,146 +1,81 @@
-# Tutorial Setup Integrasi ClickUp di Google Antigravity & ChatGPT (Akun ClickUp Free)
+# Tutorial Setup Integrasi ClickUp di ChatGPT (Akun ClickUp Free)
 
-Panduan lengkap langkah demi langkah untuk menghubungkan **ClickUp** ke **Google Antigravity** dan **ChatGPT**, dioptimalkan khusus untuk pengguna akun **ClickUp Free (Free Forever)**.
-
----
-
-## 1. Perbandingan Metode Koneksi & Kuota pada Akun ClickUp Free
-
-ClickUp membedakan kuota (*rate limit*) antara penggunaan **REST API (Personal API Token)** dan **Official Remote MCP Server**:
-
-| Metode Integrasi | Jenis API | Platform AI yang Didukung | Kuota pada Akun ClickUp Free | Rekomendasi |
-|---|---|---|---|---|
-| **Local Stdio MCP (`@taazkareem/clickup-mcp-server`)** | ClickUp REST API v2 (`pk_...`) | **Google Antigravity**, Claude Desktop, Cursor | **100 request / menit** *(tanpa batas harian)* | **Terbaik untuk Antigravity** |
-| **Custom GPT + Actions (OpenAPI Schema)** | ClickUp REST API v2 & v3 (`pk_...`) | **ChatGPT** (Plus / Team / Enterprise) | **100 request / menit** *(tanpa batas harian)* | **Terbaik untuk ChatGPT** (kuota lega) |
-| **Official Remote MCP (`https://mcp.clickup.com/mcp`)** | ClickUp Hosted AI MCP (OAuth 2.1) | **ChatGPT Connectors**, Antigravity, Claude Web | **Hanya 100 call / 24 jam** *(satu workspace)* | Praktis untuk setup cepat, namun kuota harian terbatas |
+Panduan lengkap langkah demi langkah untuk menghubungkan **ClickUp** ke **ChatGPT**, dioptimalkan khusus untuk pengguna akun **ClickUp Free (Free Forever)**.
 
 ---
 
-## 2. Persiapan Awal: Membuat Personal API Token & Team ID di ClickUp
+## 1. Perbandingan 2 Metode Integrasi ClickUp di ChatGPT
 
-Langkah ini digunakan baik untuk **Google Antigravity** maupun **ChatGPT (Custom GPT Actions)**.
+Karena **ChatGPT** berjalan di *cloud* (`https://chatgpt.com`), terdapat **2 metode resmi** untuk menghubungkan ChatGPT ke ClickUp dengan perbedaan kuota (*rate limit*) yang sangat penting bagi pengguna akun **ClickUp Free**:
 
-### 2.1 Cara Membuat Personal API Token (`CLICKUP_API_KEY`)
-1. Login ke akun **ClickUp** Anda melalui browser (`https://app.clickup.com`).
-2. Klik **Avatar / Profil** Anda (di pojok kiri bawah atau kanan atas) → pilih **Settings**.
-3. Pada menu sidebar kiri, masuk ke menu **ClickUp API**.
-4. Di bagian **Personal API Token**, klik tombol **Create token** (atau **Generate**).
-5. Salin (*copy*) token yang muncul (selalu diawali dengan `pk_...`, contoh: `pk_12345678_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`).
+| Metode Integrasi di ChatGPT | Jenis API & Autentikasi | Kuota pada Akun ClickUp Free | Kelebihan & Rekomendasi |
+|---|---|---|---|
+| **Metode 1: Custom GPT + Actions (OpenAPI Schema)** | ClickUp REST API v2 & v3 (`Personal API Token: pk_...`) | **100 request / menit** *(reset tiap menit, tanpa batas harian)* | **Sangat Direkomendasikan** untuk penggunaan intensif (baca/buat banyak Task & baca ClickUp Docs tanpa takut kuota harian habis). |
+| **Metode 2: ChatGPT Custom MCP Connector** | ClickUp Official Remote MCP (`https://mcp.clickup.com/mcp` via OAuth 2.1) | **Hanya 100 call / 24 jam** *(kuota gabungan satu workspace)* | Setup paling cepat (tanpa input skema OpenAPI), namun kuota harian cepat habis jika dipakai intensif. |
 
-> **Catatan Keamanan:** Jangan pernah membagikan atau melakukan *commit* token `pk_...` asli ke dalam repositori Git. Simpan hanya di konfigurasi lokal atau pengaturan rahasia (*Authentication*) pada klien AI Anda.
-
-### 2.2 Cara Mendapatkan `CLICKUP_TEAM_ID` (Workspace ID)
-- **Cara A (Dari URL Browser):** Buka halaman utama ClickUp di browser, lalu lihat deretan angka pertama setelah domain `app.clickup.com/`:
-  ```text
-  https://app.clickup.com/9018645826/v/l/...
-                          ^^^^^^^^^^
-                    Ini adalah CLICKUP_TEAM_ID Anda
-  ```
-- **Cara B (Otomatis via Terminal PowerShell):**
-  ```powershell
-  python -c "import urllib.request, json; req = urllib.request.Request('https://api.clickup.com/api/v2/team', headers={'Authorization': 'pk_ISI_TOKEN_ANDA'}); print(json.loads(urllib.request.urlopen(req).read().decode()))"
-  ```
+> **Prasyarat Akun ChatGPT:** Kedua metode di atas membutuhkan akun **ChatGPT Plus, Pro, Team, atau Enterprise** untuk membuat Custom GPT atau menambahkan Custom MCP Connector.
 
 ---
 
-## 3. Bagian I: Setup MCP ClickUp di Google Antigravity (Windows)
+## 2. Metode 1: Setup Menggunakan Custom GPT + Actions (Kuota 100 Request/Menit)
 
-Karena **Antigravity** berjalan secara lokal di komputer Anda, Antigravity dapat menjalankan server MCP berbasis Node.js (`npx`) secara langsung.
+Metode ini menggunakan **Personal API Token (`pk_...`)** sehingga Anda mendapatkan kuota penuh **100 request per menit** meskipun menggunakan akun **ClickUp Free**.
 
-### Langkah 1: Pastikan Node.js & `npx` Terinstal
-Cek melalui PowerShell:
-```powershell
-node -v
-npx -v
-```
+### Tahap A: Membuat Personal API Token & Mengetahui ID di ClickUp
 
-### Langkah 2: Edit File `mcp_config.json`
-Perbarui file konfigurasi global Antigravity di:
-- `C:\Users\<username>\.gemini\config\mcp_config.json`
-- `C:\Users\<username>\.gemini\antigravity\mcp_config.json`
+1. **Membuat Personal API Token (`pk_...`):**
+   - Login ke akun **ClickUp** di browser (`https://app.clickup.com`).
+   - Klik **Avatar / Profil** Anda (di pojok kiri bawah atau kanan atas) → pilih **Settings**.
+   - Pada menu sidebar kiri, klik **ClickUp API**.
+   - Di bagian **Personal API Token**, klik tombol **Create token** (atau **Generate**).
+   - Salin (*copy*) token yang dihasilkan (selalu berawalan `pk_...`, contoh: `pk_12345678_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`).
 
-Isi dengan konfigurasi berikut (menggunakan wrapper `cmd /c npx` agar proses Stdio berjalan stabil di Windows):
-
-```json
-{
-  "mcpServers": {
-    "clickup": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@taazkareem/clickup-mcp-server@latest"
-      ],
-      "env": {
-        "CLICKUP_API_KEY": "pk_ISI_DENGAN_PERSONAL_API_TOKEN_ANDA",
-        "CLICKUP_TEAM_ID": "ISI_DENGAN_TEAM_ID_ANDA"
-      }
-    }
-  }
-}
-```
-
-### Langkah 3: Aktivasi di UI Antigravity
-1. Buka panel chat **Antigravity**.
-2. Klik ikon **Additional Options (`...`)** di pojok kanan atas panel chat → pilih **MCP Servers**.
-3. Klik tombol **Refresh / Reconnect** pada server **`clickup`** hingga statusnya aktif.
-
----
-
-## 4. Bagian II: Setup ClickUp di ChatGPT
-
-Karena **ChatGPT** berjalan di *cloud* (`https://chatgpt.com`), ChatGPT tidak dapat memanggil proses `npx` lokal di laptop Anda. Berikut **2 cara** menghubungkan ClickUp ke ChatGPT:
-
----
-
-### Cara 1: Menggunakan Fitur Custom MCP Connector di ChatGPT (OAuth Resmi)
-
-Cocok untuk setup instan tanpa konfigurasi skema API, tersedia pada paket ChatGPT Plus / Pro / Team / Enterprise.
-
-#### Langkah Setup:
-1. Buka **ChatGPT** (`https://chatgpt.com`) → klik **Profil Anda** → **Settings**.
-2. Masuk ke menu **Connectors** (atau **Connected Apps**).
-3. Scroll ke bagian **Advanced**, lalu aktifkan toggle **Developer Mode** (diperlukan agar tombol tambah Custom MCP muncul).
-4. Klik tombol **Create** / **Add Custom MCP Server**, lalu isi parameter berikut:
-   - **Name:** `ClickUp`
-   - **Server URL:** `https://mcp.clickup.com/mcp`
-   - **Authentication:** Pilih **OAuth**
-5. Klik **Connect / Authenticate** → halaman otorisasi ClickUp akan terbuka di browser → pilih Workspace Anda → klik **Allow**.
-6. Saat memulai chat di ChatGPT, klik ikon **Tools (`+`)** di kolom input chat dan pastikan koneksi **ClickUp** diaktifkan.
-
-> **Batasan Cara 1 pada Akun ClickUp Free:** Koneksi ke `https://mcp.clickup.com/mcp` dibatasi **100 call per 24 jam** untuk seluruh workspace.
-
----
-
-### Cara 2: Menggunakan Custom GPT + Actions (Pakai Token `pk_...` — Kuota 100 req/menit)
-
-Jika Anda ingin menggunakan **Personal API Token (`pk_...`)** di ChatGPT agar mendapatkan kuota **100 request per menit** (bebas dari batas harian 100 call/24 jam) sekaligus bisa membaca isi halaman **ClickUp Docs**, buatlah **Custom GPT**:
-
-#### Langkah 1: Buat Custom GPT Baru
-1. Buka **ChatGPT** (`https://chatgpt.com`) → klik **Explore GPTs** di sidebar kiri.
-2. Klik tombol **+ Create** di pojok kanan atas.
-3. Pilih tab **Configure**:
-   - **Name:** `ClickUp Workspace Assistant`
-   - **Description:** `Asisten manajemen Task dan pembaca dokumentasi ClickUp Workspace.`
-   - **Instructions:**
+2. **Mengetahui `Team ID` (Workspace ID) dari URL Browser:**
+   - Saat membuka halaman utama ClickUp di browser, perhatikan deretan angka pertama setelah domain `app.clickup.com/`:
      ```text
-     Kamu adalah asisten teknis yang terhubung ke ClickUp Workspace melalui REST API v2 dan v3.
-     Default Team/Workspace ID adalah 9018645826 dan Space CAKRA adalah 90188195605.
-     Gunakan actions yang tersedia untuk membaca daftar Space, Folder, List, Task, serta membaca daftar dan isi halaman ClickUp Docs.
+     https://app.clickup.com/9018645826/v/l/...
+                             ^^^^^^^^^^
+                       Ini adalah Team / Workspace ID Anda
      ```
 
-#### Langkah 2: Konfigurasi Authentication (Penting!)
-1. Di tab **Configure**, scroll ke paling bawah ke bagian **Actions** → klik **Create new action**.
-2. Klik kolom **Authentication** (ikon ⚙️):
+---
+
+### Tahap B: Membuat Custom GPT di ChatGPT
+
+1. Buka **ChatGPT** (`https://chatgpt.com`).
+2. Di sidebar kiri, klik **Explore GPTs** → klik tombol **+ Create** di pojok kanan atas.
+3. Pilih tab **Configure** di bagian atas, lalu isi identitas asisten Anda:
+   - **Name:** `ClickUp Workspace Assistant`
+   - **Description:** `Asisten manajemen Task, Project, dan pembaca dokumentasi ClickUp Workspace.`
+   - **Instructions:**
+     ```text
+     Kamu adalah asisten teknis yang terhubung langsung ke ClickUp Workspace melalui REST API v2 dan v3.
+     Default Workspace/Team ID adalah 9018645826 dan Space utama (CAKRA) memiliki ID 90188195605.
+
+     Panduan kerja:
+     1. Gunakan action yang tersedia untuk mengecek daftar Space, Folder, List, dan Task.
+     2. Untuk membaca dokumentasi di ClickUp Docs, panggil getFolderViews atau listWorkspaceDocs untuk mendapatkan doc_id, lalu panggil getDocPageListing untuk melihat daftar halaman (page_id), dan getDocPageContent untuk membaca isi lengkap halamannya.
+     3. Karena menggunakan akun ClickUp Free, hindari penggunaan Custom Fields saat membuat task baru. Gunakan parameter markdown_description, priority (1=Urgent, 2=High, 3=Normal, 4=Low), dan tags.
+     ```
+
+---
+
+### Tahap C: Mengatur Authentication (Penting!)
+
+1. Masih di tab **Configure**, scroll ke paling bawah ke bagian **Actions** → klik tombol **Create new action**.
+2. Pada bagian **Authentication**, klik ikon pengaturan (⚙️):
    - **Authentication Type:** pilih **API Key**
-   - **Auth Type:** pilih **Custom** *(JANGAN pilih Bearer, karena ClickUp API mewajibkan header `Authorization: pk_...` tanpa awalan kata `Bearer`)*
+   - **Auth Type:** pilih **Custom**
+     > ⚠️ **Penting:** Jangan memilih *Bearer*! API ClickUp mewajibkan header `Authorization: pk_...` dikirim langsung tanpa kata `Bearer` di depannya.
    - **Custom Header Name:** ketik `Authorization`
-   - **API Key:** masukkan Personal API Token Anda (`pk_...` hasil dari menu **Settings → ClickUp API → Create token**)
+   - **API Key:** tempelkan (*paste*) Personal API Token Anda (`pk_...`).
 3. Klik **Save**.
 
-#### Langkah 3: Masukkan OpenAPI Schema
-Salin dan tempelkan spesifikasi **OpenAPI 3.1.0** berikut ke dalam kotak **Schema**:
+---
+
+### Tahap D: Memasukkan OpenAPI Schema
+
+Salin dan tempelkan spesifikasi **OpenAPI 3.1.0** berikut ke dalam kotak **Schema** di bawah pengaturan Authentication:
 
 ```yaml
 openapi: 3.1.0
@@ -317,22 +252,48 @@ paths:
           description: Successful response
 ```
 
-#### Langkah 4: Simpan & Publikasikan Secara Privat
+---
+
+### Tahap E: Simpan & Uji Custom GPT Anda
+
 1. Klik tombol **Create** (atau **Update**) di pojok kanan atas.
-2. Pilih visibilitas **Only me** (atau **Anyone with a link** di dalam tim internal).
-3. Klik **Save** dan uji Custom GPT Anda!
+2. Pilih akses **Only me** (atau **Anyone with a link** jika ingin dibagikan ke rekan setim).
+3. Klik **Save**, lalu uji di ruang chat Custom GPT dengan prompt seperti:
+   - *"Cek folder apa saja yang ada di Space CAKRA"*
+   - *"Di folder Documentation, ada dokumen apa saja beserta daftar halamannya?"*
+   - *"Tolong bacakan isi halaman Executive Summary pada dokumen STREAMING PLATFORM V1"*
 
 ---
 
-## 5. Tips & Praktik Terbaik untuk Akun ClickUp Free Forever
+## 3. Metode 2: Setup Menggunakan ChatGPT Custom MCP Connector (OAuth Resmi)
 
-Agar penggunaan integrasi AI di **Antigravity** maupun **ChatGPT** berjalan mulus tanpa terkena pembatasan fitur akun Free:
+Jika Anda ingin menghubungkan ClickUp langsung ke chat reguler ChatGPT menggunakan protokol MCP resmi dari ClickUp (`https://mcp.clickup.com/mcp`):
 
-1. **Hindari Ketergantungan pada *Custom Fields*:**
+### Langkah Setup:
+1. Buka **ChatGPT** (`https://chatgpt.com`) → klik **Profil Anda** → pilih **Settings**.
+2. Masuk ke menu **Connectors** (atau **Connected Apps**).
+3. Scroll ke bawah ke bagian **Advanced**, lalu aktifkan toggle **Developer Mode** (agar opsi penambahan Custom MCP Server muncul).
+4. Klik tombol **Create** / **Add Custom MCP Server**, kemudian isi form berikut:
+   - **Name:** `ClickUp`
+   - **Server URL:** `https://mcp.clickup.com/mcp`
+   - **Authentication:** pilih **OAuth**
+5. Klik **Connect / Authenticate**.
+6. Anda akan diarahkan ke halaman login ClickUp di browser → pilih Workspace Anda → klik **Allow Access**.
+7. Saat membuka ruang chat baru di ChatGPT, klik ikon **Tools (`+`)** di kolom chat dan pastikan tool **ClickUp** diaktifkan.
+
+> **Catatan Kuota Metode 2 pada Akun ClickUp Free:**
+> Server MCP resmi ClickUp (`mcp.clickup.com`) menerapkan batas **100 call per 24 jam** untuk seluruh workspace pada paket Free Forever. Jika kuota harian habis (`429 RATE_LIMIT_EXCEEDED`), gunakan **Metode 1 (Custom GPT + Actions)** yang memiliki kuota 100 request per menit.
+
+---
+
+## 4. Tips & Praktik Terbaik untuk Akun ClickUp Free di ChatGPT
+
+Agar instruksi dari ChatGPT ke ClickUp berjalan lancar tanpa terbentur batasan fitur paket **ClickUp Free Forever**:
+
+1. **Hindari Penggunaan *Custom Fields*:**
    - Paket ClickUp Free membatasi penggunaan *Custom Fields* maksimal **60 kali** di seluruh workspace.
-   - **Solusi:** Simpan atribut teknis (seperti ID Requirement `REQ-2026-001`, komponen `K-01`, nama microservice) menggunakan **Task Tags** (*unlimited* di paket Free), **Native Priority** (`1: Urgent`, `2: High`, `3: Normal`, `4: Low`), serta tabel Markdown di dalam **Task Description**.
+   - **Solusi:** Mintalah ChatGPT menyimpan metadata teknis (seperti ID Requirement `REQ-2026-001`, komponen `K-01`, nama microservice) ke dalam **Task Tags** (*unlimited* di paket Free), **Native Priority** (`1: Urgent`, `2: High`, `3: Normal`, `4: Low`), serta tabel Markdown di dalam **Task Description**.
 2. **Efisiensi Struktur Space & List:**
-   - Paket Free memiliki batas maksimal **5 Spaces** per Workspace dan **100 Lists** per Space. Gunakan pengelompokan **Folder** dan **List** di dalam satu Space utama (misal: Space `CAKRA`).
+   - Paket Free memiliki batas maksimal **5 Spaces** per Workspace dan **100 Lists** per Space. Fokuskan pembuatan proyek di dalam **Folder** dan **List** pada satu Space utama.
 3. **Hemat Kuota Penyimpanan (Batas 100 MB):**
-   - Hindari mengunggah lampiran file berukuran besar ke ClickUp. Cukup tautkan URL dokumen atau path repositori Git (`https://gitops.tritronik.com/...`) di dalam deskripsi Task atau ClickUp Doc.
-
+   - Jangan mengunggah lampiran dokumen besar ke ClickUp. Cukup tautkan URL dokumen atau link repositori Git di dalam deskripsi Task atau halaman ClickUp Doc.
